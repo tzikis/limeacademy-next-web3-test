@@ -33,6 +33,11 @@ const USLibrary = ({ contractAddress }: USContract) => {
 
   const [transactionPending, setTransactionPending] = useState<number>(0);
 
+  const [seatsBiden, setSeatsBiden] = useState<number | undefined>();
+  const [seatsTrump, setSeatsTrump] = useState<number | undefined>();
+
+  const contractState: any = {};
+
   useEffect(() => {
     getCurrentLeader();
   },[])
@@ -40,6 +45,16 @@ const USLibrary = ({ contractAddress }: USContract) => {
   const getCurrentLeader = async () => {
     const currentLeader = await usElectionContract.currentLeader();
     setCurrentLeader(currentLeader == Leader.UNKNOWN ? 'Unknown' : currentLeader == Leader.BIDEN ? 'Biden' : 'Trump')
+
+    const bidenSeats = await usElectionContract.seats(Leader.BIDEN);
+    setSeatsBiden(bidenSeats);
+    const trumpSeats = await usElectionContract.seats(Leader.TRUMP);
+    setSeatsTrump(trumpSeats);
+
+    contractState.currentLeader = currentLeader;
+    contractState.bidenSeats = bidenSeats;
+    contractState.trumpSeats = trumpSeats;
+
   }
 
   const stateInput = (input) => {
@@ -58,10 +73,27 @@ const USLibrary = ({ contractAddress }: USContract) => {
     setStateSeats(input.target.value)
   }
 
-  usElectionContract.on('LogStateResult', (winner, stateSeats, state, tx) => {
-    // code for execution
-    console.log(winner);
-  });
+  const logStateResultHandler = (winner, stateSeats, state, tx) => {
+
+    if(winner == Leader.BIDEN){
+      contractState.bidenSeats = contractState.bidenSeats + stateSeats;
+      setSeatsBiden(contractState.bidenSeats);  
+    }
+    else if(winner == Leader.TRUMP){
+      contractState.trumpSeats = contractState.trumpSeats + stateSeats;
+      setSeatsTrump(contractState.trumpSeats);  
+    }
+
+    const newLeader = contractState.bidenSeats == contractState.trumpSeats? Leader.UNKNOWN : contractState.bidenSeats > contractState.trumpSeats? Leader.BIDEN: Leader.TRUMP;
+    if(newLeader != contractState.currentLeader){
+      contractState.currentLeader = newLeader;
+      setCurrentLeader(newLeader == Leader.UNKNOWN ? 'Unknown' : newLeader == Leader.BIDEN ? 'Biden' : 'Trump')
+    }
+  };
+
+  useEffect(() => {
+    usElectionContract.on('LogStateResult', logStateResultHandler);
+  }, []);
 
   const submitStateResults = async () => {
     const result:any = [name, votesBiden, votesTrump, stateSeats];
@@ -86,6 +118,9 @@ const USLibrary = ({ contractAddress }: USContract) => {
 
   return (
     <div className="results-form">
+    <p>
+      Biden seats: {seatsBiden} - Trump seats: {seatsTrump}
+    </p>
     <p>
       Current Leader is: {currentLeader}
     </p>
