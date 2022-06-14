@@ -58,6 +58,11 @@ const USLibrary = ({ contractAddress }: USContract) => {
     setStateSeats(input.target.value)
   }
 
+  usElectionContract.on('LogStateResult', (winner, stateSeats, state, tx) => {
+    // code for execution
+    console.log(winner);
+  });
+
   const submitStateResults = async () => {
     const result:any = [name, votesBiden, votesTrump, stateSeats];
     const tx = await usElectionContract.submitStateResult(result);
