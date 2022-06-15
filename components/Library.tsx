@@ -3,6 +3,12 @@ import { useWeb3React } from "@web3-react/core";
 import { useEffect, useState } from "react";
 import useLibraryContract from "../hooks/useLibraryContract";
 
+import {
+  BigNumber,
+  BigNumberish,
+} from "ethers";
+
+
 type LibContract = {
   contractAddress: string;
 };
@@ -17,106 +23,103 @@ export enum Leader {
 const Library = ({ contractAddress }: LibContract) => {
   const { account, library } = useWeb3React<Web3Provider>();
   const libraryContract = useLibraryContract(contractAddress);
-  const [currentLeader, setCurrentLeader] = useState<string>('Unknown');
-  const [name, setName] = useState<string | undefined>();
-  const [votesBiden, setVotesBiden] = useState<number | undefined>();
-  const [votesTrump, setVotesTrump] = useState<number | undefined>();
-  const [stateSeats, setStateSeats] = useState<number | undefined>();
+  const [booksList, setBooksList] = useState<Object[]>([]);
+  const [addBookName, setAddBookName] = useState<string | undefined>();
+  const [addBookCopies, setAddBookCopies] = useState<number | undefined>();
 
   const [txHash, setTxHash] = useState<string>('Unknown');
 
   const [transactionPending, setTransactionPending] = useState<number>(0);
 
-  const [seatsBiden, setSeatsBiden] = useState<number | undefined>();
-  const [seatsTrump, setSeatsTrump] = useState<number | undefined>();
-
-  const [electionEnded, setElectionEnded] = useState<number>(0);
-
   const [warningMessage, setWarningMessage] = useState<string>('');
 
-  const contractState: any = {};
+  var booksListConst: any = [];
 
   useEffect(() => {
     getBooksList();
   },[])
 
   const getBooksList = async () => {
-    // const currentLeader = await libraryContract.currentLeader();
-    // setCurrentLeader(currentLeader == Leader.UNKNOWN ? 'Unknown' : currentLeader == Leader.BIDEN ? 'Biden' : 'Trump')
-    // const booksList = await libraryContract.listBooks();
-    // console.log(booksList);
-    // console.log(booksList[0]);
-    // console.log(booksList[0]["name"]);
+    const listBooks = await libraryContract.listBooks();
+    // console.log(listBooks);
+    const booksList = listBooks[0];
+    const booksHashes = listBooks[1];
 
+    const myBooksList: any = [];
 
-    // const bidenSeats = await libraryContract.seats(Leader.BIDEN);
-    // setSeatsBiden(bidenSeats);
-    // const trumpSeats = await libraryContract.seats(Leader.TRUMP);
-    // setSeatsTrump(trumpSeats);
-
-    // const _electionEnded = await libraryContract.electionEnded();
-    // setElectionEnded(_electionEnded);
-
-    // contractState.currentLeader = currentLeader;
-    // contractState.bidenSeats = bidenSeats;
-    // contractState.trumpSeats = trumpSeats;
-
-  }
-
-  const stateInput = (input) => {
-    setName(input.target.value)
-  }
-
-  const bideVotesInput = (input) => {
-    setVotesBiden(input.target.value)
-  }
-
-  const trumpVotesInput = (input) => {
-    setVotesTrump(input.target.value)
-  }
-
-  const seatsInput = (input) => {
-    setStateSeats(input.target.value)
-  }
-
-  const logStateResultHandler = (winner, stateSeats, state, tx) => {
-
-    if(winner == Leader.BIDEN){
-      contractState.bidenSeats = contractState.bidenSeats + stateSeats;
-      setSeatsBiden(contractState.bidenSeats);  
+    for(let i = 0; i< booksList.length; i++ ){
+      myBooksList[i] = {"name": booksList[i][0], "copies": booksList[i][1], "rented": booksList[i][2], "hash": booksHashes[i]}
     }
-    else if(winner == Leader.TRUMP){
-      contractState.trumpSeats = contractState.trumpSeats + stateSeats;
-      setSeatsTrump(contractState.trumpSeats);  
-    }
+    // console.log(myBooksList);
+    booksListConst = myBooksList;
+    setBooksList(myBooksList);
 
-    const newLeader = contractState.bidenSeats == contractState.trumpSeats? Leader.UNKNOWN : contractState.bidenSeats > contractState.trumpSeats? Leader.BIDEN: Leader.TRUMP;
-    if(newLeader != contractState.currentLeader){
-      contractState.currentLeader = newLeader;
-      setCurrentLeader(newLeader == Leader.UNKNOWN ? 'Unknown' : newLeader == Leader.BIDEN ? 'Biden' : 'Trump')
-    }
+    const borrowers = await libraryContract.listBooks();
+  }
+
+  const addBookNameInput = (input) => {
+    setAddBookName(input.target.value)
+  }
+
+  const addBookCopiesInput = (input) => {
+    setAddBookCopies(input.target.value)
+  }
+
+
+  const addedBookHandler = (bookId, name, numOfCopies, tx) => {
+    // console.log(bookId);
+    // console.log(name);
+    // console.log(numOfCopies);
+    // console.log(booksListConst);
+    booksListConst.push({"name": name, "copies": numOfCopies, "rented": 0, "hash": bookId});
+    setBooksList(booksListConst);
   };
 
-  const logElectionEndedHandler = (winner, tx) => {
+  const newBorrowingHandler = (bookId, borrower, tx) => {
 
-    setElectionEnded(1);
+    for(let i = 0; i< booksListConst.length; i++ ){
 
-    contractState.currentLeader = winner;
-    setCurrentLeader(winner == Leader.BIDEN ? 'Biden' : 'Trump')
+      if(booksListConst[i]["hash"].toHexString() == bookId.toHexString())
+      {
+        // console.log("FOUND");
+        // console.log(booksListConst[i]["name"])
+        booksListConst[i]["rented"] = booksListConst[i]["rented"] + 1;
+        break;
+      }
+    }
+    setBooksList([]);
+    setBooksList(booksListConst);
   };
+
+  const newReturnHandler = (bookId, borrower, tx) => {
+
+    for(let i = 0; i< booksListConst.length; i++ ){
+
+      if(booksListConst[i]["hash"].toHexString() == bookId.toHexString())
+      {
+        // console.log("FOUND");
+        // console.log(booksListConst[i]["name"])
+        booksListConst[i]["rented"] = booksListConst[i]["rented"] - 1;
+        break;
+      }
+    }
+    setBooksList([]);
+    setBooksList(booksListConst);
+  };
+
 
   useEffect(() => {
-    // libraryContract.on('LogStateResult', logStateResultHandler);
-    // libraryContract.on('LogElectionEnded', logElectionEndedHandler);
+    libraryContract.on('AddedBook', addedBookHandler);
+    libraryContract.on('NewBorrowing', newBorrowingHandler);
+    libraryContract.on('NewReturn', newReturnHandler);
   }, []);
 
-  const submitStateResults = async () => {
-    const result:any = [name, votesBiden, votesTrump, stateSeats];
+  const addBook = async () => {
 
     setWarningMessage("");
 
     try{
-      const tx = await libraryContract.submitStateResult(result);
+      const tx = await libraryContract.addBook(addBookName, addBookCopies);
 
       setTxHash(tx.hash);
       setTransactionPending(1);
@@ -128,24 +131,24 @@ const Library = ({ contractAddress }: LibContract) => {
       resetForm();  
     }
     catch (error) {
+      console.log(error);
+      console.error(error);
       setWarningMessage("Sorry, we couldn't do that. An error occured");
     }
 
   }
 
   const resetForm = async () => {
-    setName('');
-    setVotesBiden(0);
-    setVotesTrump(0);
-    setStateSeats(0);
+    setAddBookName('');
+    setAddBookCopies(0);
   }
 
-  const submitEndElection = async () => {
+  const rentBook = async (hash) => {
 
     setWarningMessage("");
 
     try{
-      const tx = await libraryContract.endElection();
+      const tx = await libraryContract.borrowBook(hash);
 
       setTxHash(tx.hash);
       setTransactionPending(1);
@@ -154,48 +157,72 @@ const Library = ({ contractAddress }: LibContract) => {
   
     }
     catch (error) {
+      console.log(error)
+      console.error(error)
       setWarningMessage("Sorry, we couldn't do that. An error occured");
     }
 
   }
 
+  const returnBook = async (hash) => {
+
+    setWarningMessage("");
+
+    // console.log(hash)
+
+    try{
+      const tx = await libraryContract.returnBook(hash);
+
+      setTxHash(tx.hash);
+      setTransactionPending(1);
+      await tx.wait();
+      setTransactionPending(2);
+  
+    }
+    catch (error) {
+      console.log(error)
+      console.error(error)
+      setWarningMessage("Sorry, we couldn't do that. An error occured");
+    }
+
+  }
+
+
   return (
     <div className="results-form">
-    <p>
+    {/* <p>
       Biden seats: {seatsBiden} - Trump seats: {seatsTrump}
     </p>
     <p>
       Current Leader is: {currentLeader}
     </p>
-    <div>Elections are : {electionEnded? "Closed": "Open"}</div>
-    <div hidden={electionEnded == 1}>
+    <div>Elections are : {electionEnded? "Closed": "Open"}</div> */}
+    {/* <div hidden={electionEnded == 1}> */}
+      <h2>Add Book:</h2>
       <form>
         <label>
-          State:
-          <input onChange={stateInput} value={name} type="text" name="state" />
+          Book Name:
+          <input onChange={addBookNameInput} value={addBookName} type="text" name="add_book_name" />
         </label>
         <label>
-          BIDEN Votes:
-          <input onChange={bideVotesInput} value={votesBiden} type="number" name="biden_votes" />
+          Number of Copies:
+          <input onChange={addBookCopiesInput} value={addBookCopies} type="number" name="add_book_copies" />
         </label>
-        <label>
-          TRUMP Votes:
-          <input onChange={trumpVotesInput} value={votesTrump} type="number" name="trump_votes" />
-        </label>
-        <label>
-          Seats:
-          <input onChange={seatsInput} value={stateSeats} type="number" name="seats" />
-        </label>
-        {/* <input type="submit" value="Submit" /> */}
       </form>
       <div className="button-wrapper">
-        <button onClick={submitStateResults}>Submit Results</button>
+        <button onClick={addBook}>Add Book</button>
       </div>
+      <li>
+      {booksList.map(({ name, copies, rented, hash }) => (
+        <ul key={name+copies+rented}> <b>{name}</b> - Copies: {copies}, Rented: {rented}, Available: {copies-rented} {copies-rented>0? <button onClick={() => {rentBook(hash)}}>Rent</button>: null} <button onClick={() => {returnBook(hash)}}>Return</button></ul>
+      ))}
+      </li>
+  
       <div className="button-wrapper">
-        <button onClick={submitEndElection}>End Election</button>
+        <button onClick={rentBook}>End Election</button>
       </div>
       <p>{warningMessage}</p>
-    </div>
+    {/* </div> */}
     <div className="loading-component" hidden={transactionPending == 0}>
       <h2>Submitting Results</h2>
       <p>Your transaction hash is <a href={"https://rinkeby.etherscan.io/tx/" + txHash} id="txHashSpan" target="_blank">{txHash}</a>.</p>
