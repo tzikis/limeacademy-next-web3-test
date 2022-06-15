@@ -1,9 +1,9 @@
 import type { Web3Provider } from "@ethersproject/providers";
 import { useWeb3React } from "@web3-react/core";
 import { useEffect, useState } from "react";
-import useUSElectionContract from "../hooks/useUSElectionContract";
+import useLibraryContract from "../hooks/useLibraryContract";
 
-type USContract = {
+type LibContract = {
   contractAddress: string;
 };
 
@@ -13,16 +13,10 @@ export enum Leader {
   TRUMP
 }
 
-// export enum TransactionStatuses {
-//   NONE,
-//   PENDING,
-//   DONE
-// }
 
-
-const USLibrary = ({ contractAddress }: USContract) => {
+const Library = ({ contractAddress }: LibContract) => {
   const { account, library } = useWeb3React<Web3Provider>();
-  const usElectionContract = useUSElectionContract(contractAddress);
+  const libraryContract = useLibraryContract(contractAddress);
   const [currentLeader, setCurrentLeader] = useState<string>('Unknown');
   const [name, setName] = useState<string | undefined>();
   const [votesBiden, setVotesBiden] = useState<number | undefined>();
@@ -43,24 +37,29 @@ const USLibrary = ({ contractAddress }: USContract) => {
   const contractState: any = {};
 
   useEffect(() => {
-    getCurrentLeader();
+    getBooksList();
   },[])
 
-  const getCurrentLeader = async () => {
-    const currentLeader = await usElectionContract.currentLeader();
-    setCurrentLeader(currentLeader == Leader.UNKNOWN ? 'Unknown' : currentLeader == Leader.BIDEN ? 'Biden' : 'Trump')
+  const getBooksList = async () => {
+    // const currentLeader = await libraryContract.currentLeader();
+    // setCurrentLeader(currentLeader == Leader.UNKNOWN ? 'Unknown' : currentLeader == Leader.BIDEN ? 'Biden' : 'Trump')
+    // const booksList = await libraryContract.listBooks();
+    // console.log(booksList);
+    // console.log(booksList[0]);
+    // console.log(booksList[0]["name"]);
 
-    const bidenSeats = await usElectionContract.seats(Leader.BIDEN);
-    setSeatsBiden(bidenSeats);
-    const trumpSeats = await usElectionContract.seats(Leader.TRUMP);
-    setSeatsTrump(trumpSeats);
 
-    const _electionEnded = await usElectionContract.electionEnded();
-    setElectionEnded(_electionEnded);
+    // const bidenSeats = await libraryContract.seats(Leader.BIDEN);
+    // setSeatsBiden(bidenSeats);
+    // const trumpSeats = await libraryContract.seats(Leader.TRUMP);
+    // setSeatsTrump(trumpSeats);
 
-    contractState.currentLeader = currentLeader;
-    contractState.bidenSeats = bidenSeats;
-    contractState.trumpSeats = trumpSeats;
+    // const _electionEnded = await libraryContract.electionEnded();
+    // setElectionEnded(_electionEnded);
+
+    // contractState.currentLeader = currentLeader;
+    // contractState.bidenSeats = bidenSeats;
+    // contractState.trumpSeats = trumpSeats;
 
   }
 
@@ -107,8 +106,8 @@ const USLibrary = ({ contractAddress }: USContract) => {
   };
 
   useEffect(() => {
-    usElectionContract.on('LogStateResult', logStateResultHandler);
-    usElectionContract.on('LogElectionEnded', logElectionEndedHandler);
+    // libraryContract.on('LogStateResult', logStateResultHandler);
+    // libraryContract.on('LogElectionEnded', logElectionEndedHandler);
   }, []);
 
   const submitStateResults = async () => {
@@ -117,7 +116,7 @@ const USLibrary = ({ contractAddress }: USContract) => {
     setWarningMessage("");
 
     try{
-      const tx = await usElectionContract.submitStateResult(result);
+      const tx = await libraryContract.submitStateResult(result);
 
       setTxHash(tx.hash);
       setTransactionPending(1);
@@ -146,7 +145,7 @@ const USLibrary = ({ contractAddress }: USContract) => {
     setWarningMessage("");
 
     try{
-      const tx = await usElectionContract.endElection();
+      const tx = await libraryContract.endElection();
 
       setTxHash(tx.hash);
       setTransactionPending(1);
@@ -250,4 +249,4 @@ const USLibrary = ({ contractAddress }: USContract) => {
   );
 };
 
-export default USLibrary;
+export default Library;

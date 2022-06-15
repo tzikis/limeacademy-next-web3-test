@@ -12,5 +12,5 @@
   // Network chain ids
   export const supportedMetamaskNetworks = [1, 3, 4, 5, 42];
 
-  export const ALBT_TOKEN_ADDRESS = "0xc6869a93ef55e1d8ec8fdcda89c9d93616cf0a72";
-  export const US_ELECTION_ADDRESS = "0x5155bE53a3144BAf6D2D8a3123Ac1914d5FDF76F";
+  // export const ALBT_TOKEN_ADDRESS = "0xc6869a93ef55e1d8ec8fdcda89c9d93616cf0a72";
+  export const LIBRARY_ADDRESS = "0x114F90a62a61759572546Ff28968ecf7b1e5829a";
