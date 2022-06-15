@@ -5,7 +5,7 @@ import Account from "../components/Account";
 import NativeCurrencyBalance from "../components/NativeCurrencyBalance";
 import TokenBalance from "../components/TokenBalance";
 import Library from "../components/Library";
-import { ALBT_TOKEN_ADDRESS, LIBRARY_ADDRESS } from "../constants";
+import { LIBRARY_ADDRESS } from "../constants";
 import useEagerConnect from "../hooks/useEagerConnect";
 
 function Home() {
