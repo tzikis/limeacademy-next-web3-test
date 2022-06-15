@@ -36,6 +36,10 @@ const USLibrary = ({ contractAddress }: USContract) => {
   const [seatsBiden, setSeatsBiden] = useState<number | undefined>();
   const [seatsTrump, setSeatsTrump] = useState<number | undefined>();
 
+  const [electionEnded, setElectionEnded] = useState<number>(0);
+
+  const [warningMessage, setWarningMessage] = useState<string>('');
+
   const contractState: any = {};
 
   useEffect(() => {
@@ -50,6 +54,9 @@ const USLibrary = ({ contractAddress }: USContract) => {
     setSeatsBiden(bidenSeats);
     const trumpSeats = await usElectionContract.seats(Leader.TRUMP);
     setSeatsTrump(trumpSeats);
+
+    const _electionEnded = await usElectionContract.electionEnded();
+    setElectionEnded(_electionEnded);
 
     contractState.currentLeader = currentLeader;
     contractState.bidenSeats = bidenSeats;
@@ -91,22 +98,40 @@ const USLibrary = ({ contractAddress }: USContract) => {
     }
   };
 
+  const logElectionEndedHandler = (winner, tx) => {
+
+    setElectionEnded(1);
+
+    contractState.currentLeader = winner;
+    setCurrentLeader(winner == Leader.BIDEN ? 'Biden' : 'Trump')
+  };
+
   useEffect(() => {
     usElectionContract.on('LogStateResult', logStateResultHandler);
+    usElectionContract.on('LogElectionEnded', logElectionEndedHandler);
   }, []);
 
   const submitStateResults = async () => {
     const result:any = [name, votesBiden, votesTrump, stateSeats];
-    const tx = await usElectionContract.submitStateResult(result);
 
-    setTxHash(tx.hash);
-    setTransactionPending(1);
+    setWarningMessage("");
 
-    await tx.wait();
+    try{
+      const tx = await usElectionContract.submitStateResult(result);
 
-    setTransactionPending(2);
+      setTxHash(tx.hash);
+      setTransactionPending(1);
+  
+      await tx.wait();
+  
+      setTransactionPending(2);
+  
+      resetForm();  
+    }
+    catch (error) {
+      setWarningMessage("Sorry, we couldn't do that. An error occured");
+    }
 
-    resetForm();
   }
 
   const resetForm = async () => {
@@ -114,6 +139,25 @@ const USLibrary = ({ contractAddress }: USContract) => {
     setVotesBiden(0);
     setVotesTrump(0);
     setStateSeats(0);
+  }
+
+  const submitEndElection = async () => {
+
+    setWarningMessage("");
+
+    try{
+      const tx = await usElectionContract.endElection();
+
+      setTxHash(tx.hash);
+      setTransactionPending(1);
+      await tx.wait();
+      setTransactionPending(2);
+  
+    }
+    catch (error) {
+      setWarningMessage("Sorry, we couldn't do that. An error occured");
+    }
+
   }
 
   return (
@@ -124,27 +168,34 @@ const USLibrary = ({ contractAddress }: USContract) => {
     <p>
       Current Leader is: {currentLeader}
     </p>
-    <form>
-      <label>
-        State:
-        <input onChange={stateInput} value={name} type="text" name="state" />
-      </label>
-      <label>
-        BIDEN Votes:
-        <input onChange={bideVotesInput} value={votesBiden} type="number" name="biden_votes" />
-      </label>
-      <label>
-        TRUMP Votes:
-        <input onChange={trumpVotesInput} value={votesTrump} type="number" name="trump_votes" />
-      </label>
-      <label>
-        Seats:
-        <input onChange={seatsInput} value={stateSeats} type="number" name="seats" />
-      </label>
-      {/* <input type="submit" value="Submit" /> */}
-    </form>
-    <div className="button-wrapper">
-      <button onClick={submitStateResults}>Submit Results</button>
+    <div>Elections are : {electionEnded? "Closed": "Open"}</div>
+    <div hidden={electionEnded == 1}>
+      <form>
+        <label>
+          State:
+          <input onChange={stateInput} value={name} type="text" name="state" />
+        </label>
+        <label>
+          BIDEN Votes:
+          <input onChange={bideVotesInput} value={votesBiden} type="number" name="biden_votes" />
+        </label>
+        <label>
+          TRUMP Votes:
+          <input onChange={trumpVotesInput} value={votesTrump} type="number" name="trump_votes" />
+        </label>
+        <label>
+          Seats:
+          <input onChange={seatsInput} value={stateSeats} type="number" name="seats" />
+        </label>
+        {/* <input type="submit" value="Submit" /> */}
+      </form>
+      <div className="button-wrapper">
+        <button onClick={submitStateResults}>Submit Results</button>
+      </div>
+      <div className="button-wrapper">
+        <button onClick={submitEndElection}>End Election</button>
+      </div>
+      <p>{warningMessage}</p>
     </div>
     <div className="loading-component" hidden={transactionPending == 0}>
       <h2>Submitting Results</h2>
